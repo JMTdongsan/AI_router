@@ -30,6 +30,7 @@ tools = [
         "function": {
             "name": "search_on_online",
             "description": "search a word on online search engine, provide real time information and information that is not in the dictionary."
+                           " Crawled summaries are staged to a local jsonl file for later DB upload."
                            " But search cost is very high, use this carefully",
             "parameters": {
                 "type": "object",
