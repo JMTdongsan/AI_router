@@ -9,8 +9,8 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from tqdm import tqdm
 
-from insert2DB import insert_data
 from send_llm import vanila_inference
+from staged_ingest import stage_search_results
 
 
 def get_html(url):
@@ -82,13 +82,19 @@ def naver_serch(keyword): # DB저장 X summarizes, urls 반환
             future.result()
     return summarizes, urls
 
-def search2naver(keyword): # 여러개의 크롤링 결과를 통합, DB 저장 메소드
+def search2naver(keyword): # 여러개의 크롤링 결과를 통합하고, 원본 요약은 파일에 적재
     summarizes, urls = naver_serch(keyword)
-    insert_data(summarizes, urls)
-    message = (f"Read below articles and then explain about {keyword}. as possible as you can describe it in detail."
-               f"max length is 500 words"
-               f"It must be understandable to teenagers. think in chinese, reply in korean. article: ".join(summarizes))
-    return vanila_inference(message)
+    staged_count, staged_path = stage_search_results(keyword, summarizes, urls)
+    message = (
+        f"Read below articles and then explain about {keyword}. as possible as you can describe it in detail."
+        f"max length is 500 words"
+        f"It must be understandable to teenagers. think in chinese, reply in korean. article: ".join(summarizes)
+    )
+    answer = vanila_inference(message)
+    return (
+        f"{answer}\n\n"
+        f"[staged_for_batch_upload] keyword={keyword}, saved_records={staged_count}, path={staged_path}"
+    )
 
 
 
