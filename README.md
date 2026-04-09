@@ -1,402 +1,297 @@
-# AI Router - RAG 기반 질의응답 시스템
+# AI Router
 
-## 📌 프로젝트 개요
+AI Router는 RAG(Retrieval Augmented Generation) 기반 질의응답 시스템이다.
+Flask API를 통해 질의를 받고, Milvus 벡터 데이터베이스와 vLLM을 사용해 문서를 검색하고 응답을 생성한다.
+또한 네이버 검색 크롤링과 국토교통부 용어 검색 도구를 통해 런타임 정보를 보강할 수 있다.
 
-AI Router는 **RAG(Retrieval Augmented Generation)** 기반의 질의응답 시스템입니다. 
-Milvus 벡터 데이터베이스와 vLLM을 활용하여 문서 검색 및 LLM 기반 응답을 생성합니다.
-추가로 네이버 검색 크롤링, 국토교통부 용어 사전 검색 등의 도구(Tool)를 통해 
-실시간 정보 검색 기능을 제공합니다.
+이 브랜치는 다음 운영 목표를 기준으로 정리되어 있다.
 
----
+- Docker Compose 기반 배포
+- vLLM 모델명 환경변수화
+- Milvus 데이터 경로 분리
+- Prometheus + Grafana 모니터링 기본 구성
 
-## 🏗️ 시스템 아키텍처
+## 주요 기능
 
-> 📊 UML 다이어그램 소스: [`assets/diagrams/architecture.md`](assets/diagrams/architecture.md)
+- `/api/ask_rag`: 벡터 검색 기반 RAG 질의응답
+- `/api/ask`: Function Calling 기반 질의응답 경로(현재 로직 추가 정리가 필요함)
+- `/api/crawl`: 키워드 기반 네이버 검색/크롤링 및 요약
+- `/healthz`: API 헬스체크
+- `/metrics`: Prometheus 메트릭 엔드포인트
 
-```mermaid
-flowchart TB
-    subgraph Client["클라이언트"]
-        USER[("사용자")]
-    end
+## 시스템 구성
 
-    subgraph API["Flask API Server (router.py)"]
-        ASK_RAG["/api/ask_rag<br/>RAG 질의응답"]
-        ASK["/api/ask<br/>Function Call"]
-        CRAWL["/api/crawl<br/>크롤링+저장"]
-    end
+### 애플리케이션 구성
 
-    subgraph Core["핵심 파이프라인"]
-        RAG["RAG Pipeline<br/>(ragpipeline.py)"]
-        FUNC_RAG["Function RAG<br/>(func_rag_pipeline.py)"]
-        CRAWLER["Crawler<br/>(crawler.py)"]
-    end
+- `router.py`: Flask API 진입점
+- `ragpipeline.py`: Haystack 기반 RAG 파이프라인
+- `func_rag_pipeline.py`: Function Calling 기반 질의응답 관련 모듈
+- `embed_api.py`: 외부 임베딩 서버 호출
+- `send_llm.py`: vLLM OpenAI-compatible API 호출
+- `vector_db.py`: Milvus 연결 및 설정
+- `crawler.py`: 네이버 검색 크롤링 및 요약
+- `llm_tool.py`: LLM tool 정의
 
-    subgraph Components["핵심 컴포넌트"]
-        EMBEDDER["Embedder<br/>(embed_api.py)"]
-        VECTOR_DB["Vector DB<br/>(vector_db.py)"]
-        LLM_CLIENT["LLM Client<br/>(send_llm.py)"]
-        TOOLS["Tools<br/>(llm_tool.py)"]
-    end
+### Docker Compose 구성
 
-    subgraph External["외부 서비스"]
-        TEI[("TEI Server<br/>:8080")]
-        MILVUS[("Milvus<br/>:19530")]
-        VLLM[("vLLM<br/>:8000")]
-        NAVER[("네이버 검색")]
-    end
+- `api`: Flask + Gunicorn API 서버
+- `vllm`: OpenAI-compatible vLLM 서버
+- `etcd`: Milvus 메타데이터 저장소
+- `minio`: Milvus 오브젝트 스토리지
+- `milvus`: 벡터 데이터베이스
+- `prometheus`: 메트릭 수집
+- `grafana`: 대시보드 시각화
+- `node-exporter`: 호스트 메트릭 수집
+- `cadvisor`: 컨테이너 메트릭 수집
 
-    USER --> ASK_RAG
-    USER --> ASK
-    USER --> CRAWL
+## 프로젝트 구조
 
-    ASK_RAG --> RAG
-    ASK --> FUNC_RAG
-    CRAWL --> CRAWLER
-
-    RAG --> EMBEDDER
-    RAG --> VECTOR_DB
-    RAG --> LLM_CLIENT
-
-    FUNC_RAG --> EMBEDDER
-    FUNC_RAG --> VECTOR_DB
-    FUNC_RAG --> TOOLS
-
-    CRAWLER --> LLM_CLIENT
-    CRAWLER --> EMBEDDER
-    CRAWLER --> VECTOR_DB
-
-    TOOLS --> LLM_CLIENT
-    TOOLS --> NAVER
-
-    EMBEDDER --> TEI
-    VECTOR_DB --> MILVUS
-    LLM_CLIENT --> VLLM
-```
-
----
-
-## 📂 프로젝트 구조
-
-```
+```text
 AI_router/
-├── router.py              # Flask API 서버 (메인 진입점)
-├── ragpipeline.py         # Haystack RAG 파이프라인 정의
-├── func_rag_pipeline.py   # Function Calling RAG 파이프라인
-├── vector_db.py           # Milvus 벡터 DB 설정
-├── embed_api.py           # 텍스트 임베딩 API 클라이언트
-├── send_llm.py            # vLLM 추론 클라이언트
-├── llm_tool.py            # LLM Tool/Function 정의
-├── crawler.py             # 네이버 검색 크롤러
-├── insert2DB.py           # 벡터 DB 데이터 삽입
-├── DB_create.py           # Milvus 컬렉션 스키마 생성
-├── token_calc.py          # 토큰 계산 및 truncate 유틸리티
-├── word_definition.py     # 국토교통부 용어 사전 검색
-├── config.py              # 환경 설정 (별도 생성 필요)
-├── assets/                # 정적 리소스
-│   └── diagrams/          # UML 다이어그램 (Mermaid)
-│       ├── architecture.md
-│       ├── rag_sequence.md
-│       ├── crawl_sequence.md
-│       ├── class_diagram.md
-│       ├── component_diagram.md
-│       └── er_diagram.md
-└── TEST/                  # 테스트 파일들
-    ├── benchmark.py
-    ├── crawler_test.py
-    ├── embedding_test.py
-    ├── inference_speed_test.py
-    ├── insert_test.py
-    ├── llm_tool_test.py
-    ├── rag_pipeline_test.py
-    ├── retrieve_test.py
-    └── vectordb_test.py
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+├── config.py
+├── router.py
+├── ragpipeline.py
+├── func_rag_pipeline.py
+├── vector_db.py
+├── embed_api.py
+├── send_llm.py
+├── llm_tool.py
+├── crawler.py
+├── insert2DB.py
+├── DB_create.py
+├── token_calc.py
+├── word_definition.py
+├── monitoring/
+│   ├── prometheus/
+│   │   └── prometheus.yml
+│   └── grafana/
+│       ├── dashboards/
+│       └── provisioning/
+├── assets/
+└── TEST/
 ```
 
----
+## 사전 준비 사항
 
-## 🔧 핵심 컴포넌트 상세 설명
+### 필수 요구사항
 
-### 1. router.py (Flask API 서버)
-메인 API 서버로 3개의 엔드포인트를 제공합니다:
+- Docker Engine
+- Docker Compose
+- NVIDIA GPU 환경(vLLM 사용 시)
+- NVIDIA Container Toolkit(vLLM 컨테이너에서 GPU 사용 시)
+- 외부 임베딩 서버 또는 별도 임베딩 서비스
 
-| 엔드포인트 | 메서드 | 설명 |
-|-----------|--------|------|
-| `/api/ask_rag` | GET | RAG 기반 질의응답 (벡터 검색 + LLM 생성) |
-| `/api/ask` | GET | Function Calling 기반 질의응답 |
-| `/api/crawl` | GET | 키워드로 네이버 검색 후 결과를 DB에 저장 |
+### 권장 확인 사항
 
-### 2. ragpipeline.py (RAG 파이프라인)
-Haystack 프레임워크를 사용한 RAG 파이프라인입니다:
-
-> 📊 상세 시퀀스 다이어그램: [`assets/diagrams/rag_sequence.md`](assets/diagrams/rag_sequence.md)
-
-```mermaid
-flowchart LR
-    Q[사용자 질문] --> E[CustomTextEmbedder]
-    E --> R[MilvusEmbeddingRetriever]
-    R --> P[PromptBuilder]
-    P --> G[CustomGenerator]
-    G --> A[응답]
-    
-    E -.->|벡터 변환| TEI[(TEI)]
-    R -.->|top-k 검색| MV[(Milvus)]
-    G -.->|LLM 추론| VL[(vLLM)]
-```
-
-### 3. embed_api.py (임베딩 컴포넌트)
-- 외부 임베딩 API(TEI 서버)를 호출하여 텍스트를 벡터로 변환
-- 1024차원 벡터 사용 (BGE 모델 추정)
-- 입력 텍스트는 500자로 제한
-
-### 4. vector_db.py (벡터 데이터베이스)
-- Milvus를 사용한 벡터 저장소
-- GPU_CAGRA 인덱스 사용 (GPU 가속 ANN 검색)
-- L2 거리 기반 유사도 측정
-
-### 5. send_llm.py (LLM 클라이언트)
-- vLLM 서버와 OpenAI 호환 API로 통신
-- Qwen2-72B-Instruct 모델 사용
-- 토큰 제한 초과 시 자동 truncate
-
-### 6. llm_tool.py (Tool/Function 정의)
-LLM이 사용할 수 있는 도구 정의:
-- `get_word_definition`: 국토교통부 용어 사전 검색
-- `search_on_online`: 네이버 실시간 검색
-
-### 7. crawler.py (웹 크롤러)
-- Selenium 기반 헤드리스 브라우저 사용
-- 네이버 블로그/뉴스 검색 결과 크롤링
-- LLM을 사용하여 크롤링 내용 요약
-- 병렬 처리로 성능 최적화
-
-### 8. word_definition.py (용어 사전)
-- 국토교통부(molit.go.kr) 용어 검색
-- 검색 결과를 LLM으로 요약하여 반환
-
----
-
-## 🔄 데이터 흐름
-
-### RAG 질의응답 흐름
-
-> 📊 상세 시퀀스 다이어그램: [`assets/diagrams/rag_sequence.md`](assets/diagrams/rag_sequence.md)
-
-```mermaid
-sequenceDiagram
-    participant User as 사용자
-    participant API as Flask API
-    participant Embed as Embedder
-    participant DB as Milvus
-    participant LLM as vLLM
-
-    User->>API: GET /api/ask_rag?question=질문
-    API->>Embed: 질문 임베딩
-    Embed-->>API: 벡터 [1024]
-    API->>DB: 유사 문서 검색 (top_k=5)
-    DB-->>API: 문서 목록
-    API->>LLM: 프롬프트 + 문서 전송
-    LLM-->>API: 응답 생성
-    API-->>User: {"answer": "..."}
-```
-
-### 크롤링 및 저장 흐름
-
-> 📊 상세 시퀀스 다이어그램: [`assets/diagrams/crawl_sequence.md`](assets/diagrams/crawl_sequence.md)
-
-```mermaid
-sequenceDiagram
-    participant User as 사용자
-    participant API as Flask API
-    participant Crawler as Crawler
-    participant Naver as 네이버
-    participant LLM as vLLM
-    participant DB as Milvus
-
-    User->>API: GET /api/crawl?keyword=키워드
-    API->>Crawler: 크롤링 요청
-    Crawler->>Naver: 블로그/뉴스 검색
-    Naver-->>Crawler: URL 목록
-    Crawler->>Crawler: Selenium으로 페이지 추출
-    Crawler->>LLM: 내용 요약 요청
-    LLM-->>Crawler: 요약 결과
-    Crawler->>DB: 임베딩 + 저장
-    Crawler-->>API: 완료
-    API-->>User: {"summaries": [...]}
-```
-
----
-
-## ⚙️ 환경 설정
-
-### 필수 환경 변수 (config.py 생성 필요)
-```python
-# config.py
-import os
-from openai import OpenAI
-
-# vLLM 서버 설정
-VLLM_URL = os.getenv("VLLM_URL", "http://localhost:8000/v1")
-VLLM_API_KEY = os.getenv("VLLM_API_KEY", "token-abc123")
-DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", "neuralmagic/Qwen2-72B-Instruct-quantized.w8a8")
-
-# 임베딩 서버 설정
-EMBED_URL = os.getenv("EMBED_URL", "http://localhost:8080/embed")
-
-# Milvus 설정
-MILVUS = os.getenv("MILVUS", "localhost")
-
-# 토큰 제한
-MAX_TOKENS = int(os.getenv("MAX_TOKENS", "4096"))
-
-# OpenAI 클라이언트 (vLLM 호환)
-client = OpenAI(base_url=VLLM_URL, api_key=VLLM_API_KEY)
-model_name = DEFAULT_MODEL
-```
-
-### 외부 서비스 요구사항
-| 서비스 | 기본 주소 | 설명 |
-|--------|----------|------|
-| vLLM | http://localhost:8000/v1 | LLM 추론 서버 |
-| TEI (Embedding) | http://localhost:8080/embed | 텍스트 임베딩 서버 |
-| Milvus | http://localhost:19530 | 벡터 데이터베이스 |
-
----
-
-## 🚀 실행 방법
-
-### 1. 의존성 설치
 ```bash
-pip install flask haystack-ai milvus-haystack pymilvus openai transformers
-pip install selenium beautifulsoup4 requests tqdm
+docker compose version
+docker info
+nvidia-smi
 ```
 
-### 2. 데이터베이스 초기화
+## 환경 설정
+
+`.env.example`을 기준으로 `.env` 파일을 생성한다.
+
 ```bash
-python DB_create.py
+cp .env.example .env
 ```
 
-### 3. 서버 실행
+### 주요 환경 변수
+
+#### API
+
+- `APP_PORT`: API 포트
+- `MAX_TOKENS`: 입력 truncate 기준 토큰 수
+
+#### vLLM
+
+- `VLLM_MODEL_NAME`: vLLM이 서빙할 모델명
+- `VLLM_IMAGE`: 사용할 vLLM 이미지
+- `VLLM_PORT`: vLLM 포트
+- `VLLM_GPU_MEMORY_UTILIZATION`: GPU 메모리 사용 비율
+- `VLLM_MAX_MODEL_LEN`: 최대 컨텍스트 길이
+- `VLLM_API_KEY`: OpenAI-compatible API key
+- `DEFAULT_MODEL`: 애플리케이션이 호출할 기본 모델명
+- `HUGGING_FACE_HUB_TOKEN`: Hugging Face 모델 다운로드 토큰
+
+#### Embedding
+
+- `EMBED_URL`: 외부 임베딩 서버 엔드포인트
+
+#### Milvus / Storage
+
+- `MILVUS_PORT`: Milvus gRPC 포트
+- `MILVUS_HTTP_PORT`: Milvus HTTP 포트
+- `MILVUS_DATA_PATH`: Milvus 데이터 저장 경로
+- `ETCD_DATA_PATH`: etcd 데이터 저장 경로
+- `MINIO_DATA_PATH`: MinIO 데이터 저장 경로
+- `MINIO_ROOT_USER`: MinIO 계정
+- `MINIO_ROOT_PASSWORD`: MinIO 비밀번호
+
+#### Monitoring
+
+- `PROMETHEUS_PORT`: Prometheus 포트
+- `PROMETHEUS_DATA_PATH`: Prometheus 데이터 경로
+- `GRAFANA_PORT`: Grafana 포트
+- `GRAFANA_DATA_PATH`: Grafana 데이터 경로
+- `GRAFANA_ADMIN_USER`: Grafana 관리자 계정
+- `GRAFANA_ADMIN_PASSWORD`: Grafana 관리자 비밀번호
+- `NODE_EXPORTER_PORT`: node-exporter 포트
+- `CADVISOR_PORT`: cAdvisor 포트
+
+## 실행 방법
+
+### 1. Compose 빌드 및 실행
+
 ```bash
-python router.py
+docker compose up --build -d
 ```
 
-### 4. API 사용 예시
+### 2. 로그 확인
+
 ```bash
-# RAG 질의응답
+docker compose logs -f api
+docker compose logs -f vllm
+docker compose logs -f milvus
+```
+
+### 3. DB 초기화
+
+Milvus 컬렉션이 아직 생성되지 않았다면 다음 명령으로 초기화한다.
+
+```bash
+docker compose exec api python DB_create.py
+```
+
+## API 사용 예시
+
+### Health check
+
+```bash
+curl http://localhost:5000/healthz
+```
+
+### RAG 질의응답
+
+```bash
 curl "http://localhost:5000/api/ask_rag?question=도로정비사업이란?"
+```
 
-# 크롤링 및 저장
+### 크롤링 및 저장
+
+```bash
 curl "http://localhost:5000/api/crawl?keyword=도로정비사업"
 ```
 
----
+## 모니터링
 
-## 🐛 차후 개선할점
+### Prometheus
 
-### 코드 품질 이슈
-1. **config.py 미포함**: 설정 파일이 버전 관리에서 제외되어 있음
-2. **미완성 기능**: `router.py`에서 `funcrag_pipeline`이 import 되지 않음
-3. **순환 참조 위험**: 모듈 간 import 의존성이 복잡함
-4. **하드코딩된 값**: URL, 포트 등이 코드에 직접 작성됨
+- URL: `http://localhost:9090`
+- 수집 대상:
+  - API `/metrics`
+  - vLLM `/metrics`
+  - Milvus `/metrics`
+  - node-exporter
+  - cAdvisor
 
-### 아키텍처 이슈
-1. **에러 처리 불일치**: 일부 함수는 예외 처리가 없음
-2. **로깅 부재**: print 문으로만 디버깅
-3. **타입 힌트 부족**: 일부 함수에 타입 힌트가 없음
-4. **테스트 부족**: 단위 테스트가 체계적이지 않음
+### Grafana
 
-### 성능 이슈
-1. **동기 크롤링**: Selenium이 동기적으로 실행됨
-2. **토크나이저 중복 로딩**: 매 요청마다 토크나이저가 로드될 수 있음
+- URL: `http://localhost:3000`
+- 기본 계정: `.env`의 `GRAFANA_ADMIN_USER`
+- 기본 비밀번호: `.env`의 `GRAFANA_ADMIN_PASSWORD`
 
----
+Grafana는 기동 시 다음 항목을 자동 적용한다.
 
+- Prometheus datasource
+- `AI Router Overview` 대시보드
 
-## 📊 UML 다이어그램 목록
+### 기본 대시보드 포함 항목
 
-모든 UML 다이어그램은 Mermaid 문법으로 작성되어 있으며 `assets/diagrams/` 폴더에 저장되어 있습니다.
+- API request rate
+- API p95 latency
+- API 5xx rate
+- route별 request rate
+- route별 latency
+- container CPU usage
+- container memory usage
+- host CPU / memory utilization
+- host network throughput
+- vLLM GPU cache usage
+- vLLM token throughput
 
-| 다이어그램 | 파일 | 설명 |
-|-----------|------|------|
-| 시스템 아키텍처 | [`architecture.md`](assets/diagrams/architecture.md) | 전체 시스템 구조 및 컴포넌트 관계 |
-| RAG 시퀀스 | [`rag_sequence.md`](assets/diagrams/rag_sequence.md) | RAG 질의응답 처리 흐름 |
-| 크롤링 시퀀스 | [`crawl_sequence.md`](assets/diagrams/crawl_sequence.md) | 웹 크롤링 및 저장 흐름 |
-| 클래스 다이어그램 | [`class_diagram.md`](assets/diagrams/class_diagram.md) | 클래스 구조 및 관계 |
-| 컴포넌트 다이어그램 | [`component_diagram.md`](assets/diagrams/component_diagram.md) | 계층별 컴포넌트 구조 |
-| ER 다이어그램 | [`er_diagram.md`](assets/diagrams/er_diagram.md) | Milvus 컬렉션 스키마 |
+## 운영 시 주의 사항
 
-### 클래스 다이어그램 미리보기
+### 1. `/api/ask` 경로
 
-> 📊 전체 다이어그램: [`assets/diagrams/class_diagram.md`](assets/diagrams/class_diagram.md)
+현재 `/api/ask` 경로는 구조상 추가 정리가 필요한 상태다.
+Docker 구성은 포함되어 있지만, Function Calling 파이프라인 자체는 별도 보완이 필요하다.
 
-```mermaid
-classDiagram
-    direction LR
-    
-    class RAGPipeline {
-        +run(inputs) dict
-    }
-    
-    class CustomTextEmbedder {
-        +run(text) embedding
-    }
-    
-    class CustomGenerator {
-        +run(prompt) replies
-    }
-    
-    class EmbedAPI {
-        +get_embed(inputs) vectors
-    }
-    
-    class SendLLM {
-        +vanila_inference(message) str
-    }
+### 2. 임베딩 서버
 
-    RAGPipeline --> CustomTextEmbedder
-    RAGPipeline --> CustomGenerator
-    CustomTextEmbedder --> EmbedAPI
-    CustomGenerator --> SendLLM
+이번 Docker 스택에는 임베딩 서버를 포함하지 않았다.
+따라서 `.env`의 `EMBED_URL`이 실제 접근 가능한 서버를 가리키도록 설정해야 한다.
+
+### 3. vLLM GPU 환경
+
+vLLM 컨테이너는 GPU 환경이 준비되지 않으면 정상 기동하지 않을 수 있다.
+특히 다음을 반드시 확인해야 한다.
+
+- NVIDIA 드라이버 설치 여부
+- NVIDIA Container Toolkit 설치 여부
+- 모델 다운로드 권한 및 Hugging Face 토큰 설정 여부
+
+### 4. 메트릭 이름 차이
+
+Grafana 대시보드는 기본적인 메트릭 구성을 기준으로 작성했다.
+실제 vLLM / Milvus 이미지 버전에 따라 일부 메트릭 이름이 다를 수 있으므로, 운영 환경 기동 후 대시보드 쿼리 튜닝이 필요할 수 있다.
+
+## 트러블슈팅
+
+### API가 기동하지 않는 경우
+
+```bash
+docker compose logs -f api
 ```
 
-### Milvus 스키마
+다음을 우선 확인한다.
 
-> 📊 전체 ER 다이어그램: [`assets/diagrams/er_diagram.md`](assets/diagrams/er_diagram.md)
+- `EMBED_URL` 접근 가능 여부
+- `VLLM_URL` 또는 `vllm` 서비스 상태
+- `MILVUS` 연결 가능 여부
 
-```mermaid
-erDiagram
-    INFORMATION_DB {
-        INT64 id PK "자동 생성"
-        VARCHAR content "문서 내용 (max 1000)"
-        VARCHAR source_url "출처 URL (max 100)"
-        FLOAT_VECTOR embed "임베딩 (dim 1024)"
-    }
+### vLLM이 기동하지 않는 경우
+
+```bash
+docker compose logs -f vllm
 ```
 
----
+다음을 확인한다.
 
-## 📚 기술 스택
+- GPU 장치 노출 여부
+- 모델명 오타 여부
+- Hugging Face token 필요 여부
+- 메모리 부족 여부
 
-- **웹 프레임워크**: Flask
-- **RAG 프레임워크**: Haystack
-- **벡터 데이터베이스**: Milvus (GPU_CAGRA 인덱스)
-- **LLM**: vLLM + Qwen2-72B-Instruct
-- **임베딩**: Text Embeddings Inference (TEI)
-- **웹 크롤링**: Selenium + BeautifulSoup
-- **토크나이저**: Hugging Face Transformers
+### Milvus가 준비되지 않는 경우
 
----
+```bash
+docker compose logs -f milvus
+docker compose logs -f etcd
+docker compose logs -f minio
+```
 
-## 🤝 기여하기
+Milvus는 etcd / minio 의존성이 정상이어야 한다.
 
-1. 이 저장소를 Fork 합니다
-2. 새로운 브랜치를 생성합니다 (`git checkout -b feature/새기능`)
-3. 변경사항을 커밋합니다 (`git commit -m '새 기능 추가'`)
-4. 브랜치에 Push 합니다 (`git push origin feature/새기능`)
-5. Pull Request를 생성합니다
+## 향후 개선 과제
 
----
-
-## 📄 라이선스
-
-이 프로젝트는 MIT 라이선스 하에 배포됩니다.
+- `/api/ask` 엔드포인트 정합성 보정
+- DB 초기화 자동화 여부 결정
+- embedding server compose 포함 여부 검토
+- Grafana 대시보드 쿼리 튜닝
+- Alert rule 추가
+- README 운영 가이드 추가 고도화
