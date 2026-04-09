@@ -9,6 +9,11 @@ from crawler import naver_serch
 app = Flask(__name__)
 
 
+@app.route('/healthz', methods=['GET'])
+def healthz():
+    return jsonify({"status": "ok"}), 200
+
+
 # API to handle RAG-based question answering
 @app.route('/api/ask_rag', methods=['GET'])
 def rag_question():
