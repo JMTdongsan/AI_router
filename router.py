@@ -1,12 +1,15 @@
 import traceback
 
 from flask import Flask, request, jsonify
+from prometheus_flask_exporter import PrometheusMetrics
 
 from insert2DB import insert_data
 from ragpipeline import rag_pipeline
 from crawler import naver_serch
 
 app = Flask(__name__)
+metrics = PrometheusMetrics(app)
+metrics.info('app_info', 'AI Router application info', version='1.0.0')
 
 
 @app.route('/healthz', methods=['GET'])

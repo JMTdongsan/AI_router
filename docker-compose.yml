@@ -112,6 +112,79 @@ services:
     networks:
       - ai-router
 
+  prometheus:
+    image: prom/prometheus:v3.4.2
+    container_name: ai-router-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ${PROMETHEUS_DATA_PATH:-./.local/prometheus}:/prometheus
+    depends_on:
+      - api
+      - vllm
+      - milvus
+      - cadvisor
+      - node-exporter
+    networks:
+      - ai-router
+
+  grafana:
+    image: grafana/grafana:12.1.1
+    container_name: ai-router-grafana
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    volumes:
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ${GRAFANA_DATA_PATH:-./.local/grafana}:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - ai-router
+
+  node-exporter:
+    image: prom/node-exporter:v1.9.1
+    container_name: ai-router-node-exporter
+    restart: unless-stopped
+    command:
+      - --path.rootfs=/host
+    pid: host
+    volumes:
+      - /:/host:ro,rslave
+    ports:
+      - "${NODE_EXPORTER_PORT:-9100}:9100"
+    networks:
+      - ai-router
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.52.1
+    container_name: ai-router-cadvisor
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    ports:
+      - "${CADVISOR_PORT:-8081}:8080"
+    networks:
+      - ai-router
+
 networks:
   ai-router:
     driver: bridge

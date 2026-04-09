@@ -9,3 +9,4 @@ requests>=2.31,<3.0
 beautifulsoup4>=4.12,<5.0
 selenium>=4.24,<5.0
 tqdm>=4.66,<5.0
+prometheus-flask-exporter>=0.23,<1.0
