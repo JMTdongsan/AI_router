@@ -28,8 +28,8 @@ retrieval_config = load_retrieval_config(
 
 document_store = build_qdrant_client(url=QDRANT_URL, api_key=QDRANT_API_KEY)
 bm25_tokens_path = default_bm25_tokens_path(
-    explicit_path=BM25_TOKENS_PATH,
-    package_dir=CHUNKING_DOCS_PACKAGE_DIR,
+    explicit_path=BM25_TOKENS_PATH or retrieval_config.bm25_tokens_path,
+    package_dir=CHUNKING_DOCS_PACKAGE_DIR or retrieval_config.package_dir,
     retrieval_config_path=QDRANT_RETRIEVAL_CONFIG,
 )
 bm25_index = (

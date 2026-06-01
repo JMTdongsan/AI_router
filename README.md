@@ -132,7 +132,7 @@ cp .env.example .env
 - `QDRANT_HTTP_PORT`: 호스트에 노출할 Qdrant HTTP 포트
 - `QDRANT_GRPC_PORT`: 호스트에 노출할 Qdrant gRPC 포트
 - `QDRANT_DATA_PATH`: Qdrant 데이터 저장 경로
-- `QDRANT_COLLECTION`: RAG 검색에 사용할 컬렉션명
+- `QDRANT_COLLECTION`: RAG 검색에 사용할 컬렉션명. `QDRANT_RETRIEVAL_CONFIG`에 `collection_name`이 있으면 그 값이 우선된다.
 - `QDRANT_VECTOR_NAMES`: 검색할 named vector 목록
 - `QDRANT_RETRIEVAL_CONFIG`: `chunking_docs`가 export한 retrieval config JSON 경로
 - `CHUNKING_DOCS_PACKAGE_DIR`: `bm25_tokens.json`을 포함한 `chunking_docs` package 경로
@@ -170,7 +170,7 @@ docker compose logs -f qdrant
 ### 3. Qdrant 컬렉션 확인
 
 Qdrant 컬렉션은 `chunking_docs qdrant-upsert-package`로 생성하고 업서트한다.
-BM25 lexical 검색은 `QDRANT_RETRIEVAL_CONFIG`와 같은 디렉터리의 `bm25_tokens.json`을 자동으로 사용하며, 다른 위치를 써야 하면 `CHUNKING_DOCS_PACKAGE_DIR` 또는 `BM25_TOKENS_PATH`로 지정한다. BM25 결과는 Qdrant named-vector 결과와 reciprocal rank fusion으로 결합된다.
+BM25 lexical 검색은 `QDRANT_RETRIEVAL_CONFIG`의 `bm25_tokens_path` 또는 같은 디렉터리의 `bm25_tokens.json`을 자동으로 사용하며, 다른 위치를 써야 하면 `CHUNKING_DOCS_PACKAGE_DIR` 또는 `BM25_TOKENS_PATH`로 지정한다. BM25 결과는 Qdrant named-vector 결과와 reciprocal rank fusion으로 결합된다.
 AI_router에서는 다음 명령으로 현재 설정된 컬렉션이 준비되어 있는지만 확인한다.
 
 ```bash

@@ -17,6 +17,8 @@ CJK_RE = re.compile(r"[\u3040-\u30ff\u3400-\u9fff\uac00-\ud7af]")
 @dataclass(frozen=True)
 class RetrievalConfig:
     collection_name: str
+    package_dir: str | None
+    bm25_tokens_path: str | None
     vector_names: list[str]
     top_k: int
     fusion_weights: dict[str, float]
@@ -124,6 +126,8 @@ def load_retrieval_config(
         vector_name_list = list(vector_names)
         return RetrievalConfig(
             collection_name=collection_name,
+            package_dir=None,
+            bm25_tokens_path=None,
             vector_names=vector_name_list,
             top_k=top_k,
             fusion_weights={f"qdrant:{name}": 1.0 for name in vector_name_list},
@@ -133,7 +137,9 @@ def load_retrieval_config(
 
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     return RetrievalConfig(
-        collection_name=collection_name,
+        collection_name=str(payload.get("collection_name") or collection_name),
+        package_dir=optional_string(payload.get("package_dir")),
+        bm25_tokens_path=optional_string(payload.get("bm25_tokens_path")),
         vector_names=list(payload.get("vector_names") or vector_names),
         top_k=int(payload.get("top_k") or top_k),
         fusion_weights={
@@ -143,6 +149,13 @@ def load_retrieval_config(
         lexical_tokenizer=dict(payload.get("lexical_tokenizer") or {}),
         score_threshold=score_threshold,
     )
+
+
+def optional_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
 
 
 @component
@@ -279,6 +292,19 @@ def default_bm25_tokens_path(
 ) -> Path | None:
     if explicit_path:
         return Path(explicit_path)
+    if retrieval_config_path and package_dir is None:
+        try:
+            config = json.loads(Path(retrieval_config_path).read_text(encoding="utf-8"))
+        except OSError:
+            config = {}
+        config_bm25_path = optional_string(config.get("bm25_tokens_path"))
+        if config_bm25_path:
+            path = Path(config_bm25_path)
+            if not path.is_absolute():
+                path = Path(retrieval_config_path).resolve().parent / path.name
+            if path.exists():
+                return path
+        package_dir = optional_string(config.get("package_dir"))
     if package_dir:
         path = Path(package_dir) / "bm25_tokens.json"
         return path if path.exists() else None
