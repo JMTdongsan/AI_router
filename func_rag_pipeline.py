@@ -20,7 +20,7 @@ prompt_template = """You're an AI assistant. Respond efficiently using these ste
 
 def fcall_rag(question):
     embedding = get_embed(question)[0]
-    result = retriever.run(query_embedding=embedding)
+    result = retriever.run(query_embedding=embedding, query=question)
     documents = result["documents"]
     doc_cont = [doc.content for doc in documents]
     print(doc_cont)
@@ -29,6 +29,5 @@ def fcall_rag(question):
 
 if __name__ == "__main__":
     print(fcall_rag(" 도로 정비 공사가 뭐지"))
-
 
 

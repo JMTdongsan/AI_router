@@ -5,6 +5,7 @@ if __name__ == '__main__':
     results = rag_pipeline.run(
         {
             "text_embedder": {"text": question},
+            "retriever": {"query": question},
             "prompt_builder": {"query": question},
         }
     )

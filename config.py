@@ -9,6 +9,8 @@ EMBED_URL = os.getenv("EMBED_URL", "http://localhost:8080/embed")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY") or None
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "seoul_plan")
+CHUNKING_DOCS_PACKAGE_DIR = os.getenv("CHUNKING_DOCS_PACKAGE_DIR", "")
+BM25_TOKENS_PATH = os.getenv("BM25_TOKENS_PATH", "")
 QDRANT_VECTOR_NAMES = [
     name.strip()
     for name in os.getenv("QDRANT_VECTOR_NAMES", "text_dense").split(",")

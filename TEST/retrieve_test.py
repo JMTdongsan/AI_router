@@ -5,7 +5,7 @@ from vector_db import retriever
 
 question = "도로 정비 사업이 뭐지?"
 embedding = get_embed(question)[0]
-result = retriever.run(query_embedding=embedding)
+result = retriever.run(query_embedding=embedding, query=question)
 
 print("Qdrant vectors:", QDRANT_VECTOR_NAMES)
 for document in result["documents"]:

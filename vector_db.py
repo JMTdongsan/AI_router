@@ -1,4 +1,6 @@
 from config import (
+    BM25_TOKENS_PATH,
+    CHUNKING_DOCS_PACKAGE_DIR,
     QDRANT_API_KEY,
     QDRANT_COLLECTION,
     QDRANT_RETRIEVAL_CONFIG,
@@ -8,8 +10,10 @@ from config import (
     RAG_TOP_K,
 )
 from qdrant_retriever import (
+    BM25ManifestIndex,
     QdrantHybridRetriever,
     build_qdrant_client,
+    default_bm25_tokens_path,
     load_retrieval_config,
 )
 
@@ -23,6 +27,18 @@ retrieval_config = load_retrieval_config(
 )
 
 document_store = build_qdrant_client(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+bm25_tokens_path = default_bm25_tokens_path(
+    explicit_path=BM25_TOKENS_PATH,
+    package_dir=CHUNKING_DOCS_PACKAGE_DIR,
+)
+bm25_index = (
+    BM25ManifestIndex(
+        bm25_tokens_path,
+        tokenizer_config=retrieval_config.lexical_tokenizer,
+    )
+    if bm25_tokens_path
+    else None
+)
 retriever = QdrantHybridRetriever(
     client=document_store,
     collection_name=retrieval_config.collection_name,
@@ -30,4 +46,5 @@ retriever = QdrantHybridRetriever(
     top_k=retrieval_config.top_k,
     fusion_weights=retrieval_config.fusion_weights,
     score_threshold=retrieval_config.score_threshold,
+    bm25_index=bm25_index,
 )

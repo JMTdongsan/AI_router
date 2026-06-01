@@ -135,6 +135,8 @@ cp .env.example .env
 - `QDRANT_COLLECTION`: RAG 검색에 사용할 컬렉션명
 - `QDRANT_VECTOR_NAMES`: 검색할 named vector 목록
 - `QDRANT_RETRIEVAL_CONFIG`: `chunking_docs`가 export한 retrieval config JSON 경로
+- `CHUNKING_DOCS_PACKAGE_DIR`: `bm25_tokens.json`을 포함한 `chunking_docs` package 경로
+- `BM25_TOKENS_PATH`: package 경로와 별도로 지정할 BM25 token manifest 경로
 - `RAG_TOP_K`: 검색 결과 개수
 - `RAG_SCORE_THRESHOLD`: Qdrant score threshold
 
@@ -168,6 +170,7 @@ docker compose logs -f qdrant
 ### 3. Qdrant 컬렉션 확인
 
 Qdrant 컬렉션은 `chunking_docs qdrant-upsert-package`로 생성하고 업서트한다.
+BM25 lexical 검색은 같은 package의 `bm25_tokens.json`을 `CHUNKING_DOCS_PACKAGE_DIR` 또는 `BM25_TOKENS_PATH`로 지정하면 Qdrant named-vector 결과와 reciprocal rank fusion으로 결합된다.
 AI_router에서는 다음 명령으로 현재 설정된 컬렉션이 준비되어 있는지만 확인한다.
 
 ```bash
