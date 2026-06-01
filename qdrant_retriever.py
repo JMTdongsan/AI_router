@@ -346,7 +346,11 @@ def default_bm25_tokens_path(
     retrieval_config_path: str | Path | None = None,
 ) -> Path | None:
     if explicit_path:
-        return Path(explicit_path)
+        return resolve_bm25_path(
+            explicit_path,
+            package_dir=package_dir,
+            retrieval_config_path=retrieval_config_path,
+        )
     if retrieval_config_path and package_dir is None:
         try:
             config = json.loads(Path(retrieval_config_path).read_text(encoding="utf-8"))
@@ -356,7 +360,7 @@ def default_bm25_tokens_path(
         if config_bm25_path:
             path = Path(config_bm25_path)
             if not path.is_absolute():
-                path = Path(retrieval_config_path).resolve().parent / path.name
+                path = Path(retrieval_config_path).resolve().parent / path
             if path.exists():
                 return path
         package_dir = optional_string(config.get("package_dir"))
@@ -367,6 +371,27 @@ def default_bm25_tokens_path(
         path = Path(retrieval_config_path).resolve().parent / "bm25_tokens.json"
         return path if path.exists() else None
     return None
+
+
+def resolve_bm25_path(
+    path: str | Path,
+    package_dir: str | Path | None = None,
+    retrieval_config_path: str | Path | None = None,
+) -> Path:
+    resolved = Path(path)
+    if resolved.is_absolute():
+        return resolved
+
+    candidates = []
+    if package_dir:
+        candidates.append(Path(package_dir) / resolved)
+    if retrieval_config_path:
+        candidates.append(Path(retrieval_config_path).resolve().parent / resolved)
+    candidates.append(resolved)
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
 
 
 def query_points(

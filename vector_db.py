@@ -51,3 +51,37 @@ retriever = QdrantHybridRetriever(
     score_threshold=retrieval_config.score_threshold,
     bm25_index=bm25_index,
 )
+
+
+def retrieval_status():
+    return {
+        "qdrant": {
+            "url": QDRANT_URL,
+            "api_key_configured": bool(QDRANT_API_KEY),
+            "collection_name": retrieval_config.collection_name,
+        },
+        "retrieval_config": {
+            "path": QDRANT_RETRIEVAL_CONFIG or None,
+            "package_dir": CHUNKING_DOCS_PACKAGE_DIR or retrieval_config.package_dir,
+            "exported_package_dir": retrieval_config.package_dir,
+            "bm25_tokens_path": retrieval_config.bm25_tokens_path,
+        },
+        "vectors": {
+            "active": retrieval_config.vector_names,
+            "skipped": retrieval_config.skipped_vector_names,
+            "query_encoders": retrieval_config.query_encoders,
+            "active_query_encoder": retrieval_config.active_query_encoder,
+        },
+        "retrieval": {
+            "top_k": retrieval_config.top_k,
+            "score_threshold": retrieval_config.score_threshold,
+            "fusion_weights": retrieval_config.fusion_weights,
+        },
+        "bm25": {
+            "enabled": bm25_index is not None,
+            "path": str(bm25_tokens_path) if bm25_tokens_path else None,
+            "doc_count": bm25_index.doc_count if bm25_index else 0,
+            "avg_doc_length": bm25_index.avg_doc_length if bm25_index else 0.0,
+            "tokenizer": retrieval_config.lexical_tokenizer,
+        },
+    }

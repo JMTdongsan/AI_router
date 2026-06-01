@@ -33,6 +33,16 @@ def healthz():
     return jsonify({"status": "ok"}), 200
 
 
+@app.route("/api/rag/config", methods=["GET"])
+def rag_config():
+    try:
+        from vector_db import retrieval_status
+
+        return jsonify(retrieval_status())
+    except Exception as exc:
+        return json_error(str(exc), 500)
+
+
 @app.route("/api/ask_rag", methods=["GET", "POST"])
 def rag_question():
     question = request_value("question")
