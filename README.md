@@ -170,7 +170,7 @@ docker compose logs -f qdrant
 ### 3. Qdrant 컬렉션 확인
 
 Qdrant 컬렉션은 `chunking_docs qdrant-upsert-package`로 생성하고 업서트한다.
-BM25 lexical 검색은 같은 package의 `bm25_tokens.json`을 `CHUNKING_DOCS_PACKAGE_DIR` 또는 `BM25_TOKENS_PATH`로 지정하면 Qdrant named-vector 결과와 reciprocal rank fusion으로 결합된다.
+BM25 lexical 검색은 `QDRANT_RETRIEVAL_CONFIG`와 같은 디렉터리의 `bm25_tokens.json`을 자동으로 사용하며, 다른 위치를 써야 하면 `CHUNKING_DOCS_PACKAGE_DIR` 또는 `BM25_TOKENS_PATH`로 지정한다. BM25 결과는 Qdrant named-vector 결과와 reciprocal rank fusion으로 결합된다.
 AI_router에서는 다음 명령으로 현재 설정된 컬렉션이 준비되어 있는지만 확인한다.
 
 ```bash

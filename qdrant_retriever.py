@@ -275,11 +275,15 @@ def build_qdrant_client(url: str, api_key: str | None = None):
 def default_bm25_tokens_path(
     explicit_path: str | Path | None = None,
     package_dir: str | Path | None = None,
+    retrieval_config_path: str | Path | None = None,
 ) -> Path | None:
     if explicit_path:
         return Path(explicit_path)
     if package_dir:
         path = Path(package_dir) / "bm25_tokens.json"
+        return path if path.exists() else None
+    if retrieval_config_path:
+        path = Path(retrieval_config_path).resolve().parent / "bm25_tokens.json"
         return path if path.exists() else None
     return None
 
