@@ -11,7 +11,7 @@ sequenceDiagram
     participant LLM as vLLM Server
     participant Insert as insert2DB.py
     participant Embed as embed_api.py
-    participant Milvus as Milvus DB
+    participant Qdrant as Qdrant DB
 
     User->>API: GET /api/crawl?keyword=키워드
     API->>Crawler: naver_serch(keyword)
@@ -55,12 +55,12 @@ sequenceDiagram
     Crawler-->>API: summarizes, urls
 
     rect rgb(232, 245, 233)
-        Note over API,Milvus: 4. DB 저장
+        Note over API,Qdrant: 4. DB 저장
         API->>Insert: insert_data(summarizes, urls)
         Insert->>Embed: get_embed(summarizes)
         Embed-->>Insert: embeddings[]
-        Insert->>Milvus: collection.insert(entities)
-        Milvus-->>Insert: success
+        Insert->>Qdrant: upsert(points)
+        Qdrant-->>Insert: success
     end
 
     API-->>User: {"keyword": "...", "summaries": [...]}

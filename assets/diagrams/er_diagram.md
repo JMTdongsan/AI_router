@@ -1,22 +1,21 @@
-# Milvus 컬렉션 ER 다이어그램
+# Qdrant 컬렉션 payload 다이어그램
 
 ```mermaid
 erDiagram
-    INFORMATION_DB {
-        INT64 id PK "자동 생성 (auto_id)"
-        VARCHAR content "문서 내용 (max: 1000)"
-        VARCHAR source_url "출처 URL (max: 100)"
-        FLOAT_VECTOR embed "임베딩 벡터 (dim: 1024)"
+    QDRANT_POINT {
+        string id PK "point id"
+        string doc_id "문서 ID"
+        string chunk_id "chunk/asset/triple ID"
+        string text "검색 본문"
+        string source_url "출처 URL"
     }
 
-    INFORMATION_DB ||--o{ INDEX_GPU_CAGRA : has
+    QDRANT_POINT ||--o{ NAMED_VECTOR : has
     
-    INDEX_GPU_CAGRA {
-        string index_type "GPU_CAGRA"
-        string metric_type "L2"
-        int intermediate_graph_degree "64"
-        int graph_degree "32"
-        string build_algo "NN_DESCENT"
+    NAMED_VECTOR {
+        string vector_name "text_dense/caption_dense/object_dense/image_dense/triple_dense"
+        string metric_type "COSINE"
+        float score "search score"
     }
 ```
 
@@ -38,7 +37,7 @@ flowchart LR
     end
 
     subgraph Storage["저장소"]
-        MILVUS[(Milvus<br/>information_db)]
+        QDRANT[(Qdrant<br/>collection)]
     end
 
     subgraph Output["출력"]
@@ -47,7 +46,7 @@ flowchart LR
 
     Q --> EMB
     EMB --> SEARCH
-    SEARCH <--> MILVUS
+    SEARCH <--> QDRANT
     SEARCH --> PROMPT
     PROMPT --> GEN
     GEN --> ANS

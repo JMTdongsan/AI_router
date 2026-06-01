@@ -1,8 +1,7 @@
 Flask>=3.0,<4.0
 gunicorn>=22.0,<23.0
 haystack-ai>=2.3,<3.0
-milvus-haystack>=0.0.10
-pymilvus>=2.4,<3.0
+qdrant-client>=1.12,<2.0
 openai>=1.30,<2.0
 transformers>=4.45,<5.0
 requests>=2.31,<3.0

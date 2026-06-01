@@ -8,8 +8,8 @@ sequenceDiagram
     participant Pipeline as RAG Pipeline
     participant Embedder as CustomTextEmbedder
     participant TEI as TEI Server
-    participant Retriever as MilvusRetriever
-    participant Milvus as Milvus DB
+    participant Retriever as QdrantHybridRetriever
+    participant Qdrant as Qdrant DB
     participant Prompt as PromptBuilder
     participant Generator as CustomGenerator
     participant vLLM as vLLM Server
@@ -26,10 +26,10 @@ sequenceDiagram
     end
 
     rect rgb(255, 243, 224)
-        Note over Pipeline,Milvus: 2. 검색 단계
+        Note over Pipeline,Qdrant: 2. 검색 단계
         Pipeline->>Retriever: retriever.run(query_embedding)
-        Retriever->>Milvus: similarity search (top_k=5)
-        Milvus-->>Retriever: documents[]
+        Retriever->>Qdrant: named-vector similarity search
+        Qdrant-->>Retriever: documents[]
         Retriever-->>Pipeline: {"documents": [...]}
     end
 

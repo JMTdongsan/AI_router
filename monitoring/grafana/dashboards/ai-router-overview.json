@@ -259,7 +259,7 @@
       },
       "targets": [
         {
-          "expr": "avg(100 * rate(container_cpu_usage_seconds_total{name=~\"ai-router-api|ai-router-vllm|ai-router-milvus\"}[5m])) / 100",
+          "expr": "avg(100 * rate(container_cpu_usage_seconds_total{name=~\"ai-router-api|ai-router-vllm|ai-router-qdrant\"}[5m])) / 100",
           "refId": "A"
         }
       ],
@@ -530,7 +530,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{name=~\"ai-router-api|ai-router-vllm|ai-router-milvus|ai-router-prometheus|ai-router-grafana\"}[5m]))",
+          "expr": "sum by (name) (rate(container_cpu_usage_seconds_total{name=~\"ai-router-api|ai-router-vllm|ai-router-qdrant|ai-router-prometheus|ai-router-grafana\"}[5m]))",
           "legendFormat": "{{name}}",
           "refId": "A"
         }
@@ -619,7 +619,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (name) (container_memory_usage_bytes{name=~\"ai-router-api|ai-router-vllm|ai-router-milvus|ai-router-prometheus|ai-router-grafana\"})",
+          "expr": "sum by (name) (container_memory_usage_bytes{name=~\"ai-router-api|ai-router-vllm|ai-router-qdrant|ai-router-prometheus|ai-router-grafana\"})",
           "legendFormat": "{{name}}",
           "refId": "A"
         }

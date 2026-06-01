@@ -10,19 +10,18 @@ C4Component
 
     Container_Boundary(core, "Core Layer") {
         Component(rag, "RAG Pipeline", "Haystack", "문서 검색 + 응답 생성")
-        Component(func_rag, "Function RAG", "Haystack", "도구 사용 RAG")
         Component(crawler, "Web Crawler", "Selenium", "웹 크롤링 + 요약")
     }
 
     Container_Boundary(services, "Service Layer") {
         Component(embed, "Embedding Service", "Python", "텍스트 임베딩")
         Component(llm, "LLM Service", "OpenAI Client", "LLM 추론")
-        Component(vector, "Vector Store", "Milvus Client", "벡터 저장/검색")
+        Component(vector, "Vector Store", "Qdrant Client", "벡터 저장/검색")
         Component(tools, "Tool Service", "Python", "외부 도구 호출")
     }
 
     Container_Boundary(external, "External Services") {
-        ComponentDb(milvus, "Milvus", "Vector DB", "벡터 저장소")
+        ComponentDb(qdrant, "Qdrant", "Vector DB", "벡터 저장소")
         Component(vllm, "vLLM", "LLM Server", "LLM 추론 서버")
         Component(tei, "TEI", "Embedding Server", "임베딩 서버")
         Component(naver, "Naver", "Web", "검색 엔진")
@@ -30,16 +29,11 @@ C4Component
     }
 
     Rel(flask, rag, "uses")
-    Rel(flask, func_rag, "uses")
     Rel(flask, crawler, "uses")
 
     Rel(rag, embed, "uses")
     Rel(rag, llm, "uses")
     Rel(rag, vector, "uses")
-
-    Rel(func_rag, embed, "uses")
-    Rel(func_rag, tools, "uses")
-    Rel(func_rag, vector, "uses")
 
     Rel(crawler, llm, "uses")
     Rel(crawler, vector, "uses")
@@ -50,7 +44,7 @@ C4Component
 
     Rel(embed, tei, "HTTP")
     Rel(llm, vllm, "HTTP")
-    Rel(vector, milvus, "gRPC")
+    Rel(vector, qdrant, "HTTP")
 ```
 
 ---
@@ -65,7 +59,6 @@ flowchart LR
 
     subgraph Core["Core Layer"]
         RAG[RAG Pipeline]
-        FUNC[Function RAG]
         CRAWL[Crawler]
     end
 
@@ -77,23 +70,18 @@ flowchart LR
     end
 
     subgraph External["External"]
-        MILVUS[(Milvus)]
+        QDRANT[(Qdrant)]
         VLLM[vLLM]
         TEI[TEI]
         NAVER[Naver]
     end
 
     FLASK --> RAG
-    FLASK --> FUNC
     FLASK --> CRAWL
 
     RAG --> EMB
     RAG --> LLM
     RAG --> VEC
-
-    FUNC --> EMB
-    FUNC --> TOOL
-    FUNC --> VEC
 
     CRAWL --> LLM
     CRAWL --> VEC
@@ -103,7 +91,7 @@ flowchart LR
 
     EMB --> TEI
     LLM --> VLLM
-    VEC --> MILVUS
+    VEC --> QDRANT
 
     style API fill:#BBDEFB
     style Core fill:#C8E6C9

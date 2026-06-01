@@ -1,23 +1,12 @@
+from config import QDRANT_VECTOR_NAMES
+from embed_api import get_embed
+from vector_db import retriever
 
 
-from config import MILVUS
-from pymilvus import connections, db
+question = "도로 정비 사업이 뭐지?"
+embedding = get_embed(question)[0]
+result = retriever.run(query_embedding=embedding)
 
-from pymilvus import MilvusClient
-
-
-client = MilvusClient(
-    uri=f"http://{MILVUS}:19530"
-)
-
-conn = connections.connect(host=MILVUS, port=19530)
-
-res = client.search(
-    collection_name="information_db",  # target collection
-    data=[[-1]*1024],  # query vectors
-    limit=2,  # number of returned entities
-    output_fields=["content", "embed"],  # specifies fields to be returned
-)
-
-print(res)
-
+print("Qdrant vectors:", QDRANT_VECTOR_NAMES)
+for document in result["documents"]:
+    print(document.meta.get("score"), document.content[:200])

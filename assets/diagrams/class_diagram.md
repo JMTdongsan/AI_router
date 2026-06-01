@@ -7,13 +7,12 @@ classDiagram
     class FlaskApp {
         +app: Flask
         +rag_question() JSON
-        +fcall_question() JSON
         +crawl_insert() JSON
     }
 
     class RAGPipeline {
         -text_embedder: CustomTextEmbedder
-        -retriever: MilvusEmbeddingRetriever
+        -retriever: QdrantHybridRetriever
         -prompt_builder: PromptBuilder
         -generator: CustomGenerator
         +run(inputs: dict) dict
@@ -27,12 +26,26 @@ classDiagram
         +run(prompt: str) dict~replies~
     }
 
-    class MilvusDocumentStore {
+    class QdrantHybridRetriever {
         -collection_name: str
-        -connection_args: dict
-        -index_params: dict
-        +write_documents()
-        +filter_documents()
+        -vector_names: List~str~
+        -fusion_weights: dict
+        +run(query_embedding: List~float~) dict~documents~
+    }
+
+    class QdrantClient {
+        -url: str
+        +query_points()
+        +upsert()
+        +get_collection()
+        +get_collections()
+    }
+
+    class RetrievalConfig {
+        -collection_name: str
+        -vector_names: List~str~
+        -top_k: int
+        -fusion_weights: dict
     }
 
     class EmbedAPI {
@@ -86,7 +99,9 @@ classDiagram
 
     RAGPipeline --> CustomTextEmbedder : contains
     RAGPipeline --> CustomGenerator : contains
-    RAGPipeline --> MilvusDocumentStore : uses
+    RAGPipeline --> QdrantHybridRetriever : uses
+    QdrantHybridRetriever --> QdrantClient : uses
+    QdrantHybridRetriever --> RetrievalConfig : configured by
 
     CustomTextEmbedder --> EmbedAPI : uses
     CustomGenerator --> SendLLM : uses
@@ -100,7 +115,7 @@ classDiagram
     Crawler --> Insert2DB : uses
 
     Insert2DB --> EmbedAPI : uses
-    Insert2DB --> MilvusDocumentStore : uses
+    Insert2DB --> QdrantClient : uses
 
     SendLLM --> TokenCalc : uses
     WordDefinition --> SendLLM : uses

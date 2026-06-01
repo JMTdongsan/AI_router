@@ -1,44 +1,49 @@
 import uuid
-from haystack import  Document
 from typing import List
 
-from pymilvus import connections, Collection
+from qdrant_client.models import Distance, PointStruct, VectorParams
 
-from config import MILVUS
-from vector_db import document_store
+from config import QDRANT_API_KEY, QDRANT_COLLECTION, QDRANT_URL
 from embed_api import get_embed
+from qdrant_retriever import build_qdrant_client
 
 
-
-# 데이터 삽입 함수 정의
 def insert_data(summarized: List[str], urls: List[str]):
     if len(summarized) != len(urls):
         raise ValueError("summarized와 urls의 길이가 다릅니다.")
-    conn = connections.connect("default", host=MILVUS, port="19530")
-    collection = Collection("information_db")
 
-    print("Before Number of documents:", collection.num_entities)
-    """documents = [
-        Document(content=summarized[i], meta={'source_url': urls[i]}, id=None)
-        for i in range(len(summarized))
-        for doc, embedding in zip(documents, embeddings):
-        doc.embedding = embedding
-    ]"""
     embeddings = get_embed(summarized)
-    entities = [
-        {
-            "embed": embedding,
-            "content": text,
-            "source_url": url
-        }
+    if not embeddings:
+        return {"inserted": 0}
+
+    client = build_qdrant_client(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+    ensure_collection(client, len(embeddings[0]))
+    points = [
+        PointStruct(
+            id=str(uuid.uuid5(uuid.NAMESPACE_URL, f"ai-router:{url}:{text}")),
+            vector={"text_dense": embedding},
+            payload={
+                "doc_id": "ai-router-crawl",
+                "chunk_id": str(uuid.uuid5(uuid.NAMESPACE_URL, f"ai-router-chunk:{url}:{text}")),
+                "text": text,
+                "content": text,
+                "source_url": url,
+                "source": "naver_crawl",
+            },
+        )
         for embedding, text, url in zip(embeddings, summarized, urls)
     ]
-
-    # 데이터 삽입
-    collection.insert(entities)
-
-    # 변경사항 적용
-    collection.flush()
-    print("After Number of documents:", collection.num_entities)
+    client.upsert(collection_name=QDRANT_COLLECTION, points=points)
+    return {"inserted": len(points)}
 
 
+def ensure_collection(client, vector_size: int):
+    collections = client.get_collections().collections
+    if any(collection.name == QDRANT_COLLECTION for collection in collections):
+        return
+    client.create_collection(
+        collection_name=QDRANT_COLLECTION,
+        vectors_config={
+            "text_dense": VectorParams(size=vector_size, distance=Distance.COSINE),
+        },
+    )

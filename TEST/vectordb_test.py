@@ -1,26 +1,11 @@
-from pymilvus import connections
-from pymilvus.orm import utility
-
-from config import MILVUS
-
-# Milvus 서버에 연결 (기본적으로 로컬호스트의 19530 포트를 사용)
-connections.connect(alias="default", host=MILVUS , port="19530")
-
-# 연결 상태 확인
-if connections.has_connection("default"):
-    print("Milvus에 연결가능")
-else:
-    raise ConnectionError("Milvus 연결불가")
+from config import QDRANT_API_KEY, QDRANT_COLLECTION, QDRANT_URL
+from qdrant_retriever import build_qdrant_client
 
 
-collections = utility.list_collections()
-print("컬렉션 목록:", collections)
+client = build_qdrant_client(url=QDRANT_URL, api_key=QDRANT_API_KEY)
+collections = client.get_collections().collections
+collection_names = [collection.name for collection in collections]
+print("Qdrant collections:", collection_names)
 
-# 원하는 컬렉션이 있는지 조회
-collection_name = "inforamion_db"
-if not utility.has_collection(collection_name):
-        raise Exception(f"'{collection_name}' 컬렉션이 존재하지 않습니다.")
-
-
-
-
+if QDRANT_COLLECTION not in collection_names:
+    raise Exception(f"'{QDRANT_COLLECTION}' Qdrant collection does not exist.")

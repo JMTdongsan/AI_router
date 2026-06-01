@@ -1,7 +1,5 @@
-from milvus_haystack import MilvusEmbeddingRetriever
-
-from vector_db import document_store
 from embed_api import get_embed
+from vector_db import retriever
 
 prompt_template = """You're an AI assistant. Respond efficiently using these steps:
                         1. Use provided context and your knowledge first.
@@ -21,21 +19,16 @@ prompt_template = """You're an AI assistant. Respond efficiently using these ste
 
 
 def fcall_rag(question):
-    embed = get_embed(question)
-    retriever = MilvusEmbeddingRetriever(
-        document_store=document_store,
-        top_k=5
-    )
-    result = retriever.run(query_embedding=embed[0])
+    embedding = get_embed(question)[0]
+    result = retriever.run(query_embedding=embedding)
     documents = result["documents"]
-    # 검색된 문서 활용
     doc_cont = [doc.content for doc in documents]
     print(doc_cont)
     return doc_cont
 
-if __name__ == '__main__':
-    print(fcall_rag(" 도로 정비 공사가 뭐지"))
 
+if __name__ == "__main__":
+    print(fcall_rag(" 도로 정비 공사가 뭐지"))
 
 
 
