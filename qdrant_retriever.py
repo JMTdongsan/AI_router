@@ -20,6 +20,9 @@ class RetrievalConfig:
     package_dir: str | None
     bm25_tokens_path: str | None
     vector_names: list[str]
+    skipped_vector_names: list[str]
+    query_encoders: dict[str, str]
+    active_query_encoder: str | None
     top_k: int
     fusion_weights: dict[str, float]
     lexical_tokenizer: dict[str, Any]
@@ -121,6 +124,7 @@ def load_retrieval_config(
     vector_names: Iterable[str],
     top_k: int,
     score_threshold: float | None = None,
+    query_encoder: str | None = None,
 ) -> RetrievalConfig:
     if not path:
         vector_name_list = list(vector_names)
@@ -129,6 +133,9 @@ def load_retrieval_config(
             package_dir=None,
             bm25_tokens_path=None,
             vector_names=vector_name_list,
+            skipped_vector_names=[],
+            query_encoders={},
+            active_query_encoder=optional_string(query_encoder),
             top_k=top_k,
             fusion_weights={f"qdrant:{name}": 1.0 for name in vector_name_list},
             lexical_tokenizer={},
@@ -136,11 +143,28 @@ def load_retrieval_config(
         )
 
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    configured_vector_names = list(payload.get("vector_names") or vector_names)
+    query_encoders = {
+        str(name): str(encoder)
+        for name, encoder in (payload.get("query_encoders") or {}).items()
+    }
+    active_query_encoder = optional_string(query_encoder) or preferred_query_encoder(
+        configured_vector_names,
+        query_encoders,
+    )
+    compatible_vector_names, skipped_vector_names = compatible_vectors(
+        configured_vector_names,
+        query_encoders,
+        active_query_encoder,
+    )
     return RetrievalConfig(
         collection_name=str(payload.get("collection_name") or collection_name),
         package_dir=optional_string(payload.get("package_dir")),
         bm25_tokens_path=optional_string(payload.get("bm25_tokens_path")),
-        vector_names=list(payload.get("vector_names") or vector_names),
+        vector_names=compatible_vector_names,
+        skipped_vector_names=skipped_vector_names,
+        query_encoders=query_encoders,
+        active_query_encoder=active_query_encoder,
         top_k=int(payload.get("top_k") or top_k),
         fusion_weights={
             str(source): float(weight)
@@ -156,6 +180,37 @@ def optional_string(value: Any) -> str | None:
         return None
     text = str(value).strip()
     return text or None
+
+
+def preferred_query_encoder(
+    vector_names: list[str],
+    query_encoders: dict[str, str],
+) -> str | None:
+    if not query_encoders:
+        return None
+    for vector_name in ["text_dense", *vector_names]:
+        encoder = optional_string(query_encoders.get(vector_name))
+        if encoder and encoder != "unknown":
+            return encoder
+    return None
+
+
+def compatible_vectors(
+    vector_names: list[str],
+    query_encoders: dict[str, str],
+    active_query_encoder: str | None,
+) -> tuple[list[str], list[str]]:
+    if not active_query_encoder:
+        return vector_names, []
+    selected = []
+    skipped = []
+    for vector_name in vector_names:
+        encoder = optional_string(query_encoders.get(vector_name))
+        if encoder and encoder != "unknown" and encoder != active_query_encoder:
+            skipped.append(vector_name)
+            continue
+        selected.append(vector_name)
+    return selected, skipped
 
 
 @component

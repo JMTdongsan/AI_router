@@ -6,6 +6,7 @@ from config import (
     QDRANT_RETRIEVAL_CONFIG,
     QDRANT_URL,
     QDRANT_VECTOR_NAMES,
+    RAG_QUERY_ENCODER,
     RAG_SCORE_THRESHOLD,
     RAG_TOP_K,
 )
@@ -24,6 +25,7 @@ retrieval_config = load_retrieval_config(
     vector_names=QDRANT_VECTOR_NAMES,
     top_k=RAG_TOP_K,
     score_threshold=RAG_SCORE_THRESHOLD,
+    query_encoder=RAG_QUERY_ENCODER,
 )
 
 document_store = build_qdrant_client(url=QDRANT_URL, api_key=QDRANT_API_KEY)

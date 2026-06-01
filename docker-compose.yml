@@ -16,6 +16,7 @@ services:
       CHUNKING_DOCS_PACKAGE_DIR: ${CHUNKING_DOCS_PACKAGE_DIR:-}
       BM25_TOKENS_PATH: ${BM25_TOKENS_PATH:-}
       RAG_TOP_K: ${RAG_TOP_K:-5}
+      RAG_QUERY_ENCODER: ${RAG_QUERY_ENCODER:-}
     ports:
       - "${APP_PORT:-5000}:5000"
     depends_on:

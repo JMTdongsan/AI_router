@@ -6,6 +6,7 @@ VLLM_API_KEY = os.getenv("VLLM_API_KEY", "token-abc123")
 DEFAULT_MODEL = os.getenv("DEFAULT_MODEL", os.getenv("VLLM_MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct"))
 
 EMBED_URL = os.getenv("EMBED_URL", "http://localhost:8080/embed")
+RAG_QUERY_ENCODER = os.getenv("RAG_QUERY_ENCODER", "")
 QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY") or None
 QDRANT_COLLECTION = os.getenv("QDRANT_COLLECTION", "seoul_plan")

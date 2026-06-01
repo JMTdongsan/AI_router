@@ -125,6 +125,7 @@ cp .env.example .env
 #### Embedding
 
 - `EMBED_URL`: 외부 임베딩 서버 엔드포인트
+- `RAG_QUERY_ENCODER`: 현재 임베딩 서버가 제공하는 query encoder 이름. 비워두면 retrieval config의 `text_dense` query encoder를 기준으로 삼는다.
 
 #### Qdrant / Storage
 
@@ -171,6 +172,7 @@ docker compose logs -f qdrant
 
 Qdrant 컬렉션은 `chunking_docs qdrant-upsert-package`로 생성하고 업서트한다.
 BM25 lexical 검색은 `QDRANT_RETRIEVAL_CONFIG`의 `bm25_tokens_path` 또는 같은 디렉터리의 `bm25_tokens.json`을 자동으로 사용하며, 다른 위치를 써야 하면 `CHUNKING_DOCS_PACKAGE_DIR` 또는 `BM25_TOKENS_PATH`로 지정한다. BM25 결과는 Qdrant named-vector 결과와 reciprocal rank fusion으로 결합된다.
+Config에 `query_encoders`가 있으면 AI_router는 현재 `RAG_QUERY_ENCODER`와 다른 encoder를 요구하는 vector를 건너뛴다. 예를 들어 텍스트 임베딩 서버만 연결된 상태에서는 `image_dense`가 자동 제외되고, `text_dense`, `caption_dense`, `object_dense`처럼 같은 텍스트 query encoder를 쓰는 vector만 조회된다.
 AI_router에서는 다음 명령으로 현재 설정된 컬렉션이 준비되어 있는지만 확인한다.
 
 ```bash
